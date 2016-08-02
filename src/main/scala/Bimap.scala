@@ -18,10 +18,10 @@
 
 package util
 
-class bimap {
+class Bimap {
   // stores touples: (key: String, value: UInt)
   private val names = new collection.mutable.HashSet[(String, Integer)]()
-  private var nextUnusedValue = 0
+  private var nextUnusedValue = 0 // also used to measure the length
 
   // constructor
   def this(inits: String*) = {
@@ -51,11 +51,17 @@ class bimap {
     else
       names.filter({case (s: String, v: Integer) => name == s}).head._2 // names are unique
 
+  def apply(name: String): Integer = byName(name)
+
   def byValue(value: Integer): String =
     if (!valueExists(value))
       throw new IllegalArgumentException("Requested value " + value + " does not exist")
     else
       names.filter({case (s: String, v: Integer) => value == v}).head._1 // values are unique
+
+  def apply(value: Integer): String = byValue(value)
+
+  def length = nextUnusedValue
 }
 
 
