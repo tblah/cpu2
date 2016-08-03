@@ -47,7 +47,7 @@ class ALU extends Module {
       io.result := ~(io.A & io.B)
     }
     is (UInt(ALU.controlOps("lshift"))) {
-      io.result := io.A << io.B.toBits
+      io.result := io.A.toBits << io.B.toBits
     }
     is (UInt(ALU.controlOps("nop"))) {
       io.result := UInt(0) // arbitary (logical "don't care")
@@ -59,19 +59,27 @@ class ALU extends Module {
 }
 
 class ALUTest(dut: ALU) extends Tester(dut) {
-  val testMax = 1000
+  val testMax = 50
   for {
     A <- -testMax until testMax
     B <- -testMax until testMax
-    op <- List("add", "sub")
-  }{
-    test(A, B, op)
-  }
+    op <- List("add", "sub", "nand", "nop")
+  } test(A, B, op)
 
-  private def test(A: Integer, B: Integer, control: String) = {
+  // leftshift does weird things in scala for big numbers
+  // so test separately here with nice numbers
+  for {
+    A <- 0 until 16
+    B <- 0 until 15
+  } test(A, B, "lshift")
+
+  private def test(A: Integer, B: Integer, control: String): Unit = {
     val result = control match {
       case "add" => A + B
       case "sub" => A - B
+      case "nand" => ~(A & B)
+      case "lshift" => A << B
+      case "nop" => 0
     }
 
     poke(dut.io.A, A)
@@ -87,9 +95,9 @@ class ALUTest(dut: ALU) extends Tester(dut) {
 }
 
 
-object ALUTest {
+object main {
   def main(args: Array[String]): Unit = {
-    chiselMainTest(Array[String]("--backend", "c", "--compile", "--test"),
-      () => Module(new ALU())){c => new ALUTest(c)}
+        chiselMainTest(Array[String]("--backend", "c", "--compile", "--test", "--genHarness"),
+            () => Module(new ALU)){c => new ALUTest(c)}
   }
 }
