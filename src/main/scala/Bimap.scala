@@ -19,7 +19,7 @@
 package util
 
 class Bimap {
-  // stores touples: (key: String, value: UInt)
+  // stores touples: (key: String, value: Integer)
   private val names = new collection.mutable.HashSet[(String, Integer)]()
   private var nextUnusedValue = 0 // also used to measure the length
 
@@ -35,7 +35,7 @@ class Bimap {
   private def valueExists(value: Integer) =
     names.exists({case (s, v) => value == v})
 
-  // private so that this class is mutable after the constructor has run
+  // private so that this class is immutable after the construction
   private def addName(s: String) {
     if (nameExists(s))
       throw new IllegalArgumentException("Names are not unique")
