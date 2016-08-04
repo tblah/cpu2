@@ -6,3 +6,4 @@ target/
 *.gch
 *.o
 ALU
+Decoder

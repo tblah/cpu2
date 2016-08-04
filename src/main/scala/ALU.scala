@@ -30,6 +30,11 @@ object ALU {
     val zeroFlag = Bool(OUTPUT)
     val positive = Bool(OUTPUT)
   }
+
+  def main(args: Array[String]): Unit = {
+   chiselMainTest(Array[String]("--backend", "c", "--compile", "--test", "--genHarness"),
+          () => Module(new ALU)){c => new ALUTest(c)}
+ }
 }
 
 class ALU extends Module {
@@ -82,6 +87,8 @@ class ALUTest(dut: ALU) extends Tester(dut) {
       case "nop" => 0
     }
 
+    println("Testing " + A + " " + control + " " + B + " = " + result)
+
     poke(dut.io.A, A)
     poke(dut.io.B, B)
     poke(dut.io.control, ALU.controlOps.byName(control))
@@ -91,13 +98,5 @@ class ALUTest(dut: ALU) extends Tester(dut) {
     expect(dut.io.result, result)
     expect(dut.io.zeroFlag, result == 0)
     expect(dut.io.positive, result >= 0)
-  }
-}
-
-
-object main {
-  def main(args: Array[String]): Unit = {
-        chiselMainTest(Array[String]("--backend", "c", "--compile", "--test", "--genHarness"),
-            () => Module(new ALU)){c => new ALUTest(c)}
   }
 }

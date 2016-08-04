@@ -62,6 +62,8 @@ class Bimap {
   def apply(value: Integer): String = byValue(value)
 
   def length = nextUnusedValue
+
+  def listNames: Seq[String] = names.map({case (s: String, v: Integer) => s}).toSeq
 }
 
 
