@@ -59,14 +59,14 @@ class RegisterFile(val numRegisters: Integer, val wordWidth: Integer) extends Mo
   val addressWidth = log2Up(numRegisters)
   val io = new RegisterFile.io(addressWidth, wordWidth)
 
-  val mem = Mem(n = numRegisters, seqRead = true, out = Bits(width=wordWidth))
+  val registers = Vec.fill(numRegisters){Reg(outType=Bits(width=wordWidth))}
 
   // default values
   io.read0.data := Bits(0)
   io.read1.data := Bits(0)
 
   when (io.writeEnable) {
-    mem(io.write.address) := io.write.data
+    registers(io.write.address) := io.write.data
   } .otherwise {
     doRead(io.read0)
     doRead(io.read1)
@@ -77,7 +77,7 @@ class RegisterFile(val numRegisters: Integer, val wordWidth: Integer) extends Mo
     when (reader.address === UInt(0)) {
       reader.data := Bits(0)
     } .otherwise {
-      reader.data := mem(reader.address)
+      reader.data := registers(reader.address)
     }
   }
 }
