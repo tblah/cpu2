@@ -24,39 +24,53 @@ import Chisel._
 
 object RAM {
   // address width is the same as the word width
-  class io extends Bundle {
-    val address = UInt(INPUT, 32)
+  class io (bytesPerWord: Integer) extends Bundle {
+    assume(bytesPerWord > 0)
+    val wordWidth = bytesPerWord * 8
+
+    val address = UInt(INPUT, wordWidth)
     val writeEnable = Bool(INPUT)
 
     // chisel does not have bidirectonal io
-    val dataIn = Bits(INPUT, 32)
-    val dataOut = Bits(OUTPUT, 32)
+    val dataIn = Bits(INPUT, wordWidth)
+    val dataOut = Bits(OUTPUT, wordWidth)
   }
 
   def main(args: Array[String]): Unit = {
+    val bytesPerWord = 4 // 32 bit word
     val numWords = 1024
     
     chiselMainTest(Array[String]("--backend", "c", "--compile", "--test", "--genHarness"),
-      () => Module(new RAM(numWords)))
+      () => Module(new RAM(bytesPerWord, numWords)))
     {c => new RAMTest(c)}
   }
 }
 
 // initial data is an optional List of touples of (data, address) to initialise the ram with
 // data should be 8 bits
-class RAM(val numWords: Integer, initialData: Seq[(Bits, UInt)] = Seq()) extends Module {
-  def bytesToWord(byte0: Bits, byte1: Bits, byte2: Bits, byte3: Bits): Bits =
-    Cat(byte3, byte2, byte1, byte0) // endian-ness
-
-  def wordToBytes(word: Bits): (Bits, Bits, Bits, Bits) =
-    (word(7, 0), word(15, 8), word(23, 16), word(31, 24))
-
-  val numBytes = 4 * numWords
-  val maxAddr = numBytes - 3
-  assume(log2Up(numBytes) <= 32, """RAM addresses are one word wide.
+class RAM(val bytesPerWord: Integer, val numWords: Integer, initialData: Seq[(Bits, UInt)] = Seq()) extends Module {
+  assume(bytesPerWord > 0)
+  val numBytes = bytesPerWord * numWords
+  val maxAddr = numBytes - (bytesPerWord - 1)
+  assume(log2Up(numBytes) <= (bytesPerWord * 8), """RAM addresses are one word wide.
     This is not sufficient to index the number of bytes which you requested""")
 
-  val io = new RAM.io
+  def bytesToWord(bytes: Vec[Bits]): Bits = {
+    var result = bytes(bytesPerWord-1)
+    for (i <- (bytesPerWord - 2) to 0 by -1) {  // going backwards because of endian-ness
+      result = Cat(result, bytes(i))
+    }
+
+    result
+  }
+
+  def wordToBytes(word: Bits): Vec[Bits] = Vec(
+    for {
+      i <- 0 until bytesPerWord
+      x <- word((8 * (i + 1)) - 1, 8 * i)
+    } yield x)
+
+  val io = new RAM.io(bytesPerWord)
 
   val mem = Mem(Bits(width=8), numBytes, seqRead=true)
 
@@ -74,14 +88,17 @@ class RAM(val numWords: Integer, initialData: Seq[(Bits, UInt)] = Seq()) extends
   io.dataOut := Bits(0)
 
   when (io.writeEnable) {
-    val (byte0, byte1, byte2, byte3) = wordToBytes(io.dataIn)
-    mem(io.address) := byte0
-    mem(io.address + UInt(1)) := byte1
-    mem(io.address + UInt(2)) := byte2
-    mem(io.address + UInt(3)) := byte3
+    val byteVec = wordToBytes(io.dataIn)
+    for (i <- 0 until bytesPerWord)
+      mem(io.address + UInt(i)) := byteVec(i)
+
   } .otherwise {
-    io.dataOut := bytesToWord(mem(io.address), mem(io.address + UInt(1)),
-      mem(io.address + UInt(2)), mem(io.address + UInt(3)))
+    val bytes = for {
+      i <- 0 until bytesPerWord
+      x <- mem(io.address + UInt(i))
+    } yield x
+
+    io.dataOut := bytesToWord(Vec(bytes))
   }
 }
 
