@@ -31,7 +31,7 @@ object ALU {
     val positive = Bool(OUTPUT)
   }
 
-  def main(args: Array[String]): Unit = {
+  def test: Unit = {
    chiselMainTest(Array[String]("--backend", "c", "--compile", "--test", "--genHarness"),
           () => Module(new ALU)){c => new ALUTest(c)}
  }

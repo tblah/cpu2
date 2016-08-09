@@ -4,7 +4,7 @@
 
 // The addres is one word wide and the RAM is addressed in bytes
 
-// everything assumes 4 byte words
+// the word length can be any number of bytes
 
 /*  This file is part of cpu2.
     cpu2 is free software: you can redistribute it and/or modify
@@ -36,7 +36,7 @@ object RAM {
     val dataOut = Bits(OUTPUT, wordWidth)
   }
 
-  def main(args: Array[String]): Unit = {
+  def test: Unit = {
     val bytesPerWord = 4 // 32 bit word
     val numWords = 1024
     

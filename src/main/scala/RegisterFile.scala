@@ -42,7 +42,7 @@ object RegisterFile {
     val write = new RegisterChannel(INPUT, addressWidth, wordWidth)
   }
 
-  def main(args: Array[String]): Unit = {
+  def test: Unit = {
     val numRegisters = 32
     val wordWidth = 32
     

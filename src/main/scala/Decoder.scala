@@ -63,7 +63,7 @@ object Decoder {
     }
   }
 
-  def main(args: Array[String]): Unit = {
+  def test: Unit = {
     chiselMainTest(Array[String]("--backend", "c", "--compile", "--test", "--genHarness"),
       () => Module(new Decoder)){c => new DecoderTest(c)}
   }
