@@ -61,58 +61,24 @@ class DecoderTest(dut: Decoder) extends Tester(dut) {
   def genReg = gen.nextInt(32)
   def genImm = gen.nextInt((1<<22)-1) - (1<<21) + 1
 
-  // tests for the different types of instruciton
-  def test(instruction: Instruction.NoArgInstruction) = {
-    println("Testing " + instruction.opcodeName)
-    poke(dut.io.memoryWord, instruction.encode)
+  def test(inst: Instruction.Instruction) {
+    def expectOption(port: Bits, x: Option[Integer]): Unit = x match {
+      case Some(i) => expect(port, i)
+      case None =>
+    }
+
+    println("Testing " + inst)
+
+    poke(dut.io.memoryWord, inst.encode)
     step(1)
-    expect(dut.io.opcode, instruction.opcodeValue)
+
+    expect(dut.io.opcode, inst.opcodeValue)
+    expectOption(dut.io.A, inst.a)
+    expectOption(dut.io.B, inst.b)
+    expectOption(dut.io.result, inst.result)
+    expectOption(dut.io.immediate, inst.immediate)
   }
 
-  def test(instruction: Instruction.ImmediateInstruciton) = {
-    println("Testing " + instruction.opcodeName)
-    poke(dut.io.memoryWord, instruction.encode)
-    step(1)
-    expect(dut.io.opcode, instruction.opcodeValue)
-    expect(dut.io.A, instruction.a)
-    expect(dut.io.immediate, instruction.immediate)
-  }
-
-  def test(instruction: Instruction.RegisterOperation) = {
-    println("Testing " + instruction.opcodeName)
-    poke(dut.io.memoryWord, instruction.encode)
-    step(1)
-    expect(dut.io.opcode, instruction.opcodeValue)
-    expect(dut.io.A, instruction.a)
-    expect(dut.io.B, instruction.b)
-    expect(dut.io.result, instruction.result)
-  }
-
-  def test(instruction: Instruction.FlowControl) = {
-    println("Testing " + instruction.opcodeName)
-    poke(dut.io.memoryWord, instruction.encode)
-    step(1)
-    expect(dut.io.opcode, instruction.opcodeValue)
-    expect(dut.io.A, instruction.a)
-  }
-
-  def test(instruction: Instruction.Load) = {
-    println("Testing " + instruction.opcodeName)
-    poke(dut.io.memoryWord, instruction.encode)
-    step(1)
-    expect(dut.io.opcode, instruction.opcodeValue)
-    expect(dut.io.A, instruction.a)
-    expect(dut.io.result, instruction.result)
-  }
-
-  def test(instruction: Instruction.Store) = {
-    println("Testing " + instruction.opcodeName)
-    poke(dut.io.memoryWord, instruction.encode)
-    step(1)
-    expect(dut.io.opcode, instruction.opcodeValue)
-    expect(dut.io.A, instruction.a)
-    expect(dut.io.B, instruction.b)
-  }
 
   for (opcode <- opcodes; x <- 1 until testsPerOp) {
     opcode match {

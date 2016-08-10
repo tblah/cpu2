@@ -43,6 +43,20 @@ object Instruction {
 
     def encode: Integer
 
+    def a: Option[Integer]
+    def b: Option[Integer]
+    def result: Option[Integer]
+    def immediate: Option[Integer]
+
+    override def toString(): String = {
+      def argToString[T](arg: Option[T], first: Boolean): String = arg match {
+        case Some(x) => if (first) x.toString else ", " + x.toString
+        case None => new String()
+      }
+
+      opcodeName + "(" + argToString(a, true) + argToString(b, false) + argToString(result, false) + argToString(immediate, false) + ")"
+    }
+
     protected def isRegister(i: Integer): Integer =
       if (!((i < 32) && (i >= 0)))
         throw new IllegalArgumentException(i.toString + " is not a valid register")
@@ -59,27 +73,47 @@ object Instruction {
   // how to encode different Instruction types
   abstract class NoArgInstruction extends Instruction {
     def encode = opcodeValue
+
+    def a = None
+    def b = None
+    def result = None
+    def immediate = None
   }
 
-  abstract class ImmediateInstruciton(val a: Integer, val immediate: Integer) extends Instruction {
-    isRegister(a)
-    isImmediate(immediate)
+  abstract class ImmediateInstruciton(_a: Integer, _immediate: Integer) extends Instruction {
+    isRegister(_a)
+    isImmediate(_immediate)
 
-    def encode = opcodeValue | (a << 5) | (immediate << 10)
+    def encode = opcodeValue | (_a << 5) | (_immediate << 10)
+
+    def a = Some(_a)
+    def b = None
+    def result = None
+    def immediate = Some(_immediate)
   }
 
-  abstract class RegisterOperation(val a: Integer, val b: Integer, val result: Integer) extends Instruction {
-    isRegister(a)
-    isRegister(b)
-    isRegister(result)
+  abstract class RegisterOperation(_a: Integer, _b: Integer, _result: Integer) extends Instruction {
+    isRegister(_a)
+    isRegister(_b)
+    isRegister(_result)
 
-    def encode = opcodeValue | (a << 5) | (b << 10) | (result << 15)
+    def encode = opcodeValue | (_a << 5) | (_b << 10) | (_result << 15)
+
+    def a = Some(_a)
+    def b = Some(_b)
+    def result = Some(_result)
+    def immediate = None
   }
 
-  abstract class FlowControl(val a: Integer) extends Instruction {
-    isRegister(a)
+  abstract class FlowControl(_a: Integer) extends Instruction {
+    isRegister(_a)
 
-    def encode = opcodeValue | (a << 5)
+    def encode = opcodeValue | (_a << 5)
+
+    def a = Some(_a)
+    def b = None
+    def result = None
+    def immediate = None
   }
 
   // actual instruction classes for things to use
@@ -123,22 +157,32 @@ object Instruction {
     def opcodeName = "branchIfPositive"
   }
 
-  case class Load(val a: Integer, val result: Integer) extends Instruction {
-    isRegister(a)
-    isRegister(result)
+  case class Load(_a: Integer, _result: Integer) extends Instruction {
+    isRegister(_a)
+    isRegister(_result)
 
     def opcodeName = "load"
 
-    def encode = opcodeValue | (a << 5) | (result << 15)
+    def encode = opcodeValue | (_a << 5) | (_result << 15)
+
+    def a = Some(_a)
+    def b = None
+    def result = Some(_result)
+    def immediate = None
   }
 
-  case class Store(val a: Integer, val b: Integer) extends Instruction {
-    isRegister(a)
-    isRegister(b)
+  case class Store(_a: Integer, _b: Integer) extends Instruction {
+    isRegister(_a)
+    isRegister(_b)
 
     def opcodeName = "store"
 
-    def encode = opcodeValue | (a << 5) | (b << 10)
+    def encode = opcodeValue | (_a << 5) | (_b << 10)
+
+    def a = Some(_a)
+    def b = Some(_b)
+    def result = None
+    def immediate = None
   }
 
   case object Halt extends NoArgInstruction {
