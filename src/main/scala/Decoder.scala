@@ -27,42 +27,6 @@ object Decoder {
     val immediate = SInt(OUTPUT, 22)
   }
 
-  // args is a list of touples containing the name of the element we are looking for and it's value
-  // e.g. ("A", 1) :: ("B", 2) :: ("Result", 3) :: Nil
-  // for usage examples see the tests for Decoder
-  def encodeInstruction(opcode: String, args: (String, Integer)*): Integer = {
-    def isRegister(i: Integer): Integer =
-      if (!((i < 32) && (i >= 0)))
-        throw new IllegalArgumentException(i.toString + " is not a valid register")
-      else
-        i
-
-    def isImmediate(i: Integer): Integer =
-      if (!(i < (1 << 21)) && (i >= -((1 << 21))))
-        throw new IllegalArgumentException(i.toString + " is not a valid immediate value")
-      else 
-        if (i < 0) i & 0x3FFFFFF else i // zero out the top 10 sign bits to reduce to 22 bits
-
-    def getArg(name: String): Integer =
-      args.find({case (s, i) => s == name}).getOrElse(
-        throw new IllegalArgumentException("Not found argument " + name))._2
-
-    def a: Integer = isRegister(getArg("A")) << 5
-    def b: Integer = isRegister(getArg("B")) << 10
-    def result: Integer = isRegister(getArg("Result")) << 15
-    def imm: Integer = isImmediate(getArg("Immediate")) << 10
-
-    opcode match {
-      case "nop" | "halt"                    => CPU.opcodes.byName(opcode)
-      case "addImmediate" | "subImmediate"   => CPU.opcodes.byName(opcode) | a | imm
-      case "add" | "sub" | "nand" | "lshift" => CPU.opcodes.byName(opcode) | a | b | result
-      case "jumpToReg" | "branchIfZero" | "branchIfPositive" => CPU.opcodes.byName(opcode) | a
-      case "load"                            => CPU.opcodes.byName(opcode) | a |     result
-      case "store"                           => CPU.opcodes.byName(opcode) | a | b
-      case _ => throw new IllegalArgumentException("Unrecognised opcode " + opcode)
-    }
-  }
-
   def test: Unit = {
     chiselMainTest(Array[String]("--backend", "c", "--compile", "--test", "--genHarness"),
       () => Module(new Decoder)){c => new DecoderTest(c)}
@@ -90,89 +54,82 @@ class Decoder extends Module {
 
 class DecoderTest(dut: Decoder) extends Tester(dut) {
   val testsPerOp = 32 // number of times to run each test per opcode
-  val opcodes: Seq[String] = CPU.opcodes.listNames.filter((s: String) => !s.contains("RESERVED_"))
+  val opcodes: Seq[String] = Instruction.opcodes.listNames.filter((s: String) => !s.contains("RESERVED_"))
 
   val gen = new scala.util.Random()
 
-  def regNum = gen.nextInt(32)
-  def immediate = gen.nextInt((1<<22)-1) - (1<<21) + 1
+  def genReg = gen.nextInt(32)
+  def genImm = gen.nextInt((1<<22)-1) - (1<<21) + 1
+
+  // tests for the different types of instruciton
+  def test(instruction: Instruction.NoArgInstruction) = {
+    println("Testing " + instruction.opcodeName)
+    poke(dut.io.memoryWord, instruction.encode)
+    step(1)
+    expect(dut.io.opcode, instruction.opcodeValue)
+  }
+
+  def test(instruction: Instruction.ImmediateInstruciton) = {
+    println("Testing " + instruction.opcodeName)
+    poke(dut.io.memoryWord, instruction.encode)
+    step(1)
+    expect(dut.io.opcode, instruction.opcodeValue)
+    expect(dut.io.A, instruction.a)
+    expect(dut.io.immediate, instruction.immediate)
+  }
+
+  def test(instruction: Instruction.RegisterOperation) = {
+    println("Testing " + instruction.opcodeName)
+    poke(dut.io.memoryWord, instruction.encode)
+    step(1)
+    expect(dut.io.opcode, instruction.opcodeValue)
+    expect(dut.io.A, instruction.a)
+    expect(dut.io.B, instruction.b)
+    expect(dut.io.result, instruction.result)
+  }
+
+  def test(instruction: Instruction.FlowControl) = {
+    println("Testing " + instruction.opcodeName)
+    poke(dut.io.memoryWord, instruction.encode)
+    step(1)
+    expect(dut.io.opcode, instruction.opcodeValue)
+    expect(dut.io.A, instruction.a)
+  }
+
+  def test(instruction: Instruction.Load) = {
+    println("Testing " + instruction.opcodeName)
+    poke(dut.io.memoryWord, instruction.encode)
+    step(1)
+    expect(dut.io.opcode, instruction.opcodeValue)
+    expect(dut.io.A, instruction.a)
+    expect(dut.io.result, instruction.result)
+  }
+
+  def test(instruction: Instruction.Store) = {
+    println("Testing " + instruction.opcodeName)
+    poke(dut.io.memoryWord, instruction.encode)
+    step(1)
+    expect(dut.io.opcode, instruction.opcodeValue)
+    expect(dut.io.A, instruction.a)
+    expect(dut.io.B, instruction.b)
+  }
 
   for (opcode <- opcodes; x <- 1 until testsPerOp) {
     opcode match {
-      case "nop" | "halt" => {
-        println("Testing " + opcode)
-        poke(dut.io.memoryWord, Decoder.encodeInstruction(opcode))
-        step(1)
-        expect(dut.io.opcode, CPU.opcodes.byName(opcode))
-      }
-
-      case "addImmediate" | "subImmediate" => {
-        val a = regNum
-        val imm = immediate
-
-        println("Testing " + opcode + " " + a + " " + imm)
-
-        poke(dut.io.memoryWord, Decoder.encodeInstruction(opcode, ("A", a), ("Immediate", imm)))
-        step(1)
-        expect(dut.io.opcode, CPU.opcodes.byName(opcode))
-        expect(dut.io.immediate, imm)
-        expect(dut.io.A, a)
-      }
-
-      case "add" | "sub" | "nand" | "lshift" => {
-        val a = regNum
-        val b = regNum
-        val res = regNum
-
-        println("Testing " + opcode + " " + a + " " + b + " " + res)
-
-        poke(dut.io.memoryWord,
-          Decoder.encodeInstruction(opcode, ("A", a), ("B", b), ("Result", res)))
-        step(1)
-        expect(dut.io.opcode, CPU.opcodes.byName(opcode))
-        expect(dut.io.A, a)
-        expect(dut.io.B, b)
-        expect(dut.io.result, res)
-      }
-
-      case "jumpToReg" | "branchIfZero" | "branchIfPositive" => {
-        val a = regNum
-
-        println("Testing " + opcode + " " + a)
-
-        poke(dut.io.memoryWord, Decoder.encodeInstruction(opcode, ("A", a)))
-        step(1)
-        expect(dut.io.opcode, CPU.opcodes.byName(opcode))
-        expect(dut.io.A, a)
-      }
-
-      case "load" => {
-        val a = regNum
-        val res = regNum
-
-        println("Testing " + opcode + " " + a + " " + res)
-
-        poke(dut.io.memoryWord, Decoder.encodeInstruction(opcode, ("A", a), ("Result", res)))
-        step(1)
-        expect(dut.io.opcode, CPU.opcodes.byName(opcode))
-        expect(dut.io.A, a)
-        expect(dut.io.result, res)
-      }
-
-      case "store" => {
-        val a = regNum
-        val b = regNum
-
-        println("Testing " + opcode + " " + a + " " + b)
-
-        poke(dut.io.memoryWord, Decoder.encodeInstruction(opcode, ("A", a), ("B", b)))
-        step(1)
-        expect(dut.io.opcode, CPU.opcodes.byName(opcode))
-        expect(dut.io.A, a)
-        expect(dut.io.B, b)
-      }
-
-      case _ => println("WARNING!!!! NO TESTS FOR OPCODE " + opcode)
+      case "nop"              => test(Instruction.Nop) 
+      case "addImmediate"     => test(Instruction.AddImmediate(genReg, genImm))
+      case "subImmediate"     => test(Instruction.SubImmediate(genReg, genImm))
+      case "add"              => test(Instruction.Add(genReg, genReg, genReg))
+      case "sub"              => test(Instruction.Sub(genReg, genReg, genReg))
+      case "nand"             => test(Instruction.Nand(genReg, genReg, genReg))
+      case "lshift"           => test(Instruction.Lshift(genReg, genReg, genReg))
+      case "jumpToReg"        => test(Instruction.JumpToReg(genReg))
+      case "branchIfZero"     => test(Instruction.BranchIfZero(genReg))
+      case "branchIfPositive" => test(Instruction.BranchIfPositive(genReg))
+      case "load"             => test(Instruction.Load(genReg, genReg))
+      case "store"            => test(Instruction.Store(genReg, genReg))
+      case "halt"             => test(Instruction.Halt)
+      case s                  => throw new Exception("Untested opcode " + s)
     }
   }
 }
