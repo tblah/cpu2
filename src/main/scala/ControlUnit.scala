@@ -27,12 +27,6 @@ object ControlUnit {
     val alu = (new ALU.io).flip
     val decoder = (new Decoder.io).flip
   }
-
-  def test: Unit = {
-    chiselMainTest(Array[String]("--backend", "c", "--compile", "--test", "--genHarness"),
-      () => Module(new ControlUnit))
-    {c => new ControlUnitTest(c)}
-  }
 }
 
 class ControlUnit extends Module {
@@ -240,9 +234,5 @@ class ControlUnit extends Module {
       write()
     }
   }
-}
-
-class ControlUnitTest(dut: ControlUnit) extends Tester(dut) {
-
 }
 

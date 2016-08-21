@@ -27,7 +27,7 @@ object Tests {
   }
 
   def main(args: Array[String]): Unit = {
-    runTest("Control Unit", ControlUnit.test)
+    runTest("CPU", CPU.test)
     runTest("ALU", ALU.test)
     runTest("Decoder", Decoder.test)
     runTest("Register File", RegisterFile.test)

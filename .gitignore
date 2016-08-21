@@ -12,3 +12,4 @@ Decoder
 RegisterFile
 RAM
 ControlUnit
+CPU
