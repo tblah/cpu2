@@ -1,4 +1,6 @@
 *~
+\#*
+.\#*
 project/
 target/
 *.cpp
@@ -9,3 +11,4 @@ ALU
 Decoder
 RegisterFile
 RAM
+ControlUnit

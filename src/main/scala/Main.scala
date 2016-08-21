@@ -16,19 +16,21 @@ import cpu._
 
 object Tests {
   def runTest(name: String, test: => Unit): Unit = {
-    print("Do you wan't to run the test suite for " + name + "? (y/n) ") 
+    print("Do you wan't to run the test suite for " + name + "? (y/n) or use q to quit: ") 
     val c = scala.Console.readChar()
     c match {
       case 'Y' | 'y' => test
       case 'N' | 'n' => return
+      case 'Q' | 'q' => sys.exit
       case _ => runTest(name, test)
     }
   }
 
   def main(args: Array[String]): Unit = {
+    runTest("Control Unit", ControlUnit.test)
     runTest("ALU", ALU.test)
     runTest("Decoder", Decoder.test)
-    runTest("RegisterFile", RegisterFile.test)
+    runTest("Register File", RegisterFile.test)
     runTest("RAM", RAM.test)
   }
 }
